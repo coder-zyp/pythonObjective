@@ -26,6 +26,7 @@
       <option name="ignoredIdentifiers">
         <list>
           <option value="browser.Tkinter" />
+          <option value="seniu11.url" />
         </list>
       </option>
     </inspection_tool>

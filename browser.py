@@ -1,15 +1,25 @@
+# from PyQt5.QtGui import QContextMenuEvent
+# # from PyQt5.QtTest import QTest
 
+import sys
 import os
 
-from PyQt5.uic.properties import QtCore
+# from logging import debug
+# from PyQt5.QtGui import QIcon
+from distutils import log, config
+from distutils.log import debug
+
+# from PyQt5 import Qt
 from lxml import html
 import re
 import requests
+import time
 
-from PyQt5.QtWidgets import QApplication, QMenu
+from PyQt5.QtGui import QClipboard
+from PyQt5.QtWidgets import QApplication, QMenu, QAction
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineSettings
-from PyQt5.QtCore import QUrl
-
+from PyQt5.QtCore import QUrl, QEvent, QPoint, QObject
+from PyQt5.uic.properties import QtGui, QtCore
 
 
 def header(referer):
@@ -36,64 +46,67 @@ def getPiclink(url):
     total = sel.xpath('//div[@class="pagenavi"]/a[last()-1]/span/text()')[0]
     # 标题
     title = sel.xpath('//h2[@class="main-title"]/text()')[0]
+    # 文件夹格式
+    dirName = u"【{}P】{}".format(total, title)
+    # 新建文件夹
+    os.mkdir(dirName)
 
-    path = u"{}/{} {}p".format(os.path.dirname(__file__), title, total)
-    print(os.path.dirname(__file__))
-    if not os.path.exists(path):
-        os.makedirs(path)
-        n = 1
-        for i in range(int(total)):
-            # 每一页
-            try:
-                link = '{}/{}'.format(url, i+1)
-                s = html.fromstring(requests.get(link).content)
-                # 图片地址在src标签中
-                jpgLink = s.xpath('//div[@class="main-image"]/p/a/img/@src')[0]
-                # print(jpgLink)
-                # 文件写入的名称：当前路径／文件夹／文件名
-                filename = '%s/%s.jpg' % (path, n)
-                print(filename)
-                print(u'开始下载图片:%s 第%s张' % (title, n))
-                with open(filename, "wb") as jpg:
-                    jpg.write(requests.get(jpgLink, headers=header(jpgLink)).content)
-                n += 1
-            except:
-                pass
+    n = 1
+    for i in range(int(total)):
+        # 每一页
+        try:
+            link = '{}/{}'.format(url, i + 1)
 
+            s = html.fromstring(requests.get(link).content)
+            # 图片地址在src标签中
+            jpgLink = s.xpath('//div[@class="main-image"]/p/a/img/@src')[0]
+            # print(jpgLink)
+            # 文件写入的名称：当前路径／文件夹／文件名
+            filename = '%s/%s/%s.jpg' % (os.path.abspath('.'), dirName, n)
+            print(u'开始下载图片:%s 第%s张' % (dirName, n))
+            with open(filename, "wb+") as jpg:
+                jpg.write(requests.get(jpgLink, headers=header(jpgLink)).content)
+            n += 1
+        except:
+            pass
+
+
+a = 1
 
 
 class WebEngineView(QWebEngineView):
+    a = 1
 
     def __init__(self):
+
         super(WebEngineView, self).__init__()
         self.settings().setAttribute(
             QWebEngineSettings.LocalStorageEnabled,
             True
         )
-
+        self.load(QUrl("http://www.mzitu.com"))
         self.urlChanged.connect(self.onLinkClick)
+
     def onLinkClick(self, url):
         print(url)
 
-    def createWindow(self, types):
-        new = WebEngineView()
-        # new.load(QUrl("http://www.mzitu.com"))
-        return new
+    def createWindow(self, windowType):
+        if windowType == QWebEnginePage.WebBrowserTab:
+            webView = WebEngineView()
+            webView.setAttribute(Qt.WA_DeleteOnClose, True)
+            return webView
 
-        # print(QApplication.clipboard().text())
-        # app.clipboard().setText("")
-    #     print(self.url())
-        # print(self.page().url(), self.page().requestedUrl())
-        # self.page().toHtml(self.callable)
-        #
+        return super(WebEngineView, self).createWindow(windowType)
+
     def callable(self, data):
         print(self.url())
         view.load(self.url())
+
     def contextMenuEvent(self, event):
         menu = QMenu(self)
         for action in [
             QWebEnginePage.Back, QWebEnginePage.Forward,
-            QWebEnginePage.Reload, QWebEnginePage.Stop, 
+            QWebEnginePage.Reload, QWebEnginePage.Stop,
             QWebEnginePage.CopyLinkToClipboard
         ]:
             action = self.pageAction(action)
@@ -101,21 +114,18 @@ class WebEngineView(QWebEngineView):
                 menu.addAction(action)
         menu.exec_(event.globalPos())
 
-def chageCopyLink():
-    print(app.clipboard().text())
-    link = app.clipboard().text()
 
+def chageCopyLink(type):
+    print(type)
+    link = app.clipboard().text()
     if re.match(r'^https?:/{2}\w.+$', link):
         getPiclink(link)
-        # with ThreadPool(4) as pool:
 
 
-
+#   app.clipboard().setText("")
 
 app = QApplication([])
 app.clipboard().changed.connect(chageCopyLink)
 view = WebEngineView()
-
-view.load(QUrl("http://www.mzitu.com"))
 view.show()
 app.exec_()
